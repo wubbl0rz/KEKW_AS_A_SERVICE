@@ -1,0 +1,78 @@
+---
+- name: SETUP
+  hosts: all
+  gather_facts: false
+  remote_user: root
+  tasks:
+    - name: update / upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: install packages
+      apt:
+        name: [telnet, git, vim, htop, nload, tmux, dstat, net-tools]
+        state: latest
+
+    - name: disable show IP on login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regex: ^(# *)?PrintLastLog
+        line: PrintLastLog no
+        
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+
+    - name: create app user
+      user:
+        name: app
+
+    - name: create KEKW_AS_A_SERVICE unit file
+      copy:
+        dest: /etc/systemd/system/KEKW_AS_A_SERVICE.service
+        content: |
+          [Unit]
+          Description=KEKW_AS_A_SERVICE
+
+          [Service]
+          AmbientCapabilities=CAP_NET_BIND_SERVICE
+          WorkingDirectory=/home/app/KEKW_AS_A_SERVICE
+          ExecStart=/home/app/KEKW_AS_A_SERVICE/KEKW_AS_A_SERVICE --urls "http://*:80"
+          Restart=always
+          RestartSec=10
+          KillSignal=SIGINT
+          SyslogIdentifier=KEKW_AS_A_SERVICE
+          User=app
+          Environment=ASPNETCORE_ENVIRONMENT=Production
+          Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+
+          [Install]
+          WantedBy=multi-user.target
+
+- name: BUILD
+  hosts: all
+  gather_facts: false
+  #remote_user: root
+  tasks:
+    - name: BUILD
+      local_action: shell cd ../KEKW_AS_A_SERVICE; dotnet publish -c Release -r linux-x64 --self-contained
+
+- name: DEPLOY
+  hosts: all
+  gather_facts: false
+  remote_user: root
+  tasks: 
+    - name: copy app
+      ansible.posix.synchronize:
+        src: ../KEKW_AS_A_SERVICE/bin/Release/net5.0/linux-x64/publish/
+        dest: /home/app/KEKW_AS_A_SERVICE
+        delete: yes
+        recursive: yes
+
+    - name: restart KEKW_AS_A_SERVICE
+      ansible.builtin.systemd:
+        name: KEKW_AS_A_SERVICE.service
+        state: restarted
+        daemon_reload: yes
