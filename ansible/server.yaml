@@ -51,6 +51,13 @@
           [Install]
           WantedBy=multi-user.target
 
+    - name: enable KEKW_AS_A_SERVICE
+      ansible.builtin.systemd:
+        name: KEKW_AS_A_SERVICE.service
+        enabled: yes
+        daemon_reload: yes
+
+
 - name: BUILD
   hosts: all
   gather_facts: false

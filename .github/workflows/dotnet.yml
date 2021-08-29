@@ -1,0 +1,38 @@
+name: .NET
+
+on:
+  push:
+    branches: [ prod ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: SETUP
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+    - name: BUILD
+      run: | 
+        cd KEKW_AS_A_SERVICE
+        dotnet publish -c Release -r linux-x64 --self-contained -o ../build
+    - name: DEPLOY
+      env:
+        HCLOUD_TOKEN: '${{ secrets.HCLOUD_API }}'
+      run: | 
+        sudo apt -y install hcloud-cli
+        mkdir ~/.ssh
+        echo '${{ secrets.SSH_PRIV_KEY }}' >> ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        for i in $(hcloud server list -o columns=labels,ipv4 -o noheader | grep "^kekw_as_a_service" | awk '{print $2}'); do  
+          echo "======================"
+          echo "DEPLOY: $i"
+          echo "======================"
+          ssh -o StrictHostKeyChecking=accept-new root@$i 'systemctl stop KEKW_AS_A_SERVICE'
+          rsync --chown=app:app -a --info=progress2 build/ root@$i:/home/app/KEKW_AS_A_SERVICE
+          ssh root@$i 'systemctl start KEKW_AS_A_SERVICE'
+          sleep 15
+        done
