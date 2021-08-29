@@ -11,6 +11,16 @@ namespace KEKW_AS_A_SERVICE.Controllers
   [Route("/")]
   public class KEKWController : ControllerBase
   {
+    [HttpGet("{r}")]
+    public IActionResult Get(uint r)
+    {
+      r = r % 360;
+      
+      var file = System.IO.File.OpenRead($"wwwroot/out{r}.png");
+
+      return File(file, "image/png");
+    }
+    
     [HttpGet]
     public IActionResult Get()
     {
