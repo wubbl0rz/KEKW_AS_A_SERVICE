@@ -20,7 +20,18 @@ namespace KEKW_AS_A_SERVICE.Controllers
 
       return File(file, "image/png");
     }
-    
+
+    [HttpGet("/kkona")]
+    public IActionResult GetKKona()
+    {
+      var random = new Random();
+      var n = random.Next(0, 360);
+
+      var file = System.IO.File.OpenRead($"wwwroot/out{n}.png");
+
+      return File(file, "image/png");
+    }
+
     [HttpGet]
     public IActionResult Get()
     {
